@@ -1,0 +1,2 @@
+Vertex buffer object-->contains actual data
+Vertex array object --> how to access your data(VBO). which are points, which are colors etc.
