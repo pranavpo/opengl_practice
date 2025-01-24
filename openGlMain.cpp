@@ -5,29 +5,17 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <string>
+#include <fstream>
+#include <sstream>
 
+
+int gScreenWidth = 640;
+int gScreenHeight = 480;
 // Vertex and fragment shaders
-const char* vertexShaderSource = R"(
-    #version 330 core
-    uniform mat4 model;
-    layout (location = 0) in vec2 aPos;
-    layout (location = 1) in vec3 aCol;
-    out vec3 fragColor;
-    void main()
-    {
-        gl_Position = model * vec4(aPos, 0.0, 1.0);
-        fragColor = aCol;
-    }
-)";
+const char* vertexShaderSource;
+const char *fragmentShaderSource; 
 
-const char *fragmentShaderSource = R"(
-    #version 330 core
-    in vec3 fragColor; // Receive color from vertex shader
-    out vec4 FragColor;
-    void main() {
-        FragColor = vec4(fragColor, 1.0); // Use interpolated color
-    }
-)";
 
 
 // Function to initialize SDL and OpenGL
@@ -43,7 +31,7 @@ SDL_Window* initSDLAndOpenGL() {
 
     SDL_Window* window = SDL_CreateWindow("OpenGL Triangle",
                                           SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                          800, 600, SDL_WINDOW_OPENGL);
+                                          gScreenWidth, gScreenHeight, SDL_WINDOW_OPENGL);
     if (window == NULL) {
         std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         exit(-1);
@@ -82,10 +70,24 @@ void checkCompileErrors(GLuint shader, const std::string& type) {
     }
 }
 
+std::string readShaderFile(const std::string& filePath) {
+    std::ifstream shaderFile(filePath);
+    if (!shaderFile.is_open()) {
+        std::cerr << "Failed to open shader file: " << filePath << std::endl;
+        exit(-1);
+    }
+    std::stringstream shaderStream;
+    shaderStream << shaderFile.rdbuf();
+    return shaderStream.str();
+}
+
 // Function to compile shaders
 GLuint compileShader(GLenum type, const char* source) {
+    std::string shaderSource = readShaderFile(source);
+    const char* shaderSourceCStr = shaderSource.c_str();
+
     GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, NULL);
+    glShaderSource(shader, 1, &shaderSourceCStr, NULL);
     glCompileShader(shader);
     checkCompileErrors(shader, type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT");
     return shader;
@@ -93,8 +95,8 @@ GLuint compileShader(GLenum type, const char* source) {
 
 // Function to create a shader program
 GLuint createShaderProgram() {
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, "vertex_shader.glsl");
+    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, "fragment_shader.glsl");
 
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
@@ -119,22 +121,20 @@ GLuint setupVertexData() {
     GLuint VAO, VBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-
     glBindVertexArray(VAO);
-
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
     // Position attribute
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-
     // Color attribute
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
     glEnableVertexAttribArray(1);
-
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+
+    // FOR TRIANGLE
 
     return VAO;
 }
@@ -204,8 +204,8 @@ int main() {
     SDL_Window* window = initSDLAndOpenGL();
 
     // Set up shaders and vertex data
-    GLuint shaderProgram = createShaderProgram();
     GLuint VAO = setupVertexData();
+    GLuint shaderProgram = createShaderProgram();
 
     // Run the main loop
     mainLoop(window, shaderProgram, VAO);
@@ -215,3 +215,5 @@ int main() {
 
     return 0;
 }
+
+// g++ -o main openGlMain.cpp -lSDL2 -lGLEW -lGL -I/usr/include/SDL2
